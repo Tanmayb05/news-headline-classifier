@@ -206,6 +206,7 @@ with tab1:
 # --- Classify Tab ---
 with tab2:
     st.markdown("Enter a news headline below to classify it into one of the four categories.")
+    st.info("💡 **Tip:** Click the 'Random' button to generate a random headline. Wait for some time to load to generate random lines.")
 
     # Initialize session state for headline
     if 'random_headline' not in st.session_state:
