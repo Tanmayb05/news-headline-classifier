@@ -39,26 +39,6 @@ venv.bak/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Machine Learning
-saved_models/
-*.pkl
-*.h5
-*.hdf5
-*.ckpt
-*.pth
-*.pt
-
-# Data
-data/
-*.csv
-*.json
-*.parquet
-*.feather
-
-# Model artifacts
-models/
-checkpoints/
-
 # Logs
 *.log
 logs/
