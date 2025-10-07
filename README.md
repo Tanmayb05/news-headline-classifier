@@ -2,6 +2,8 @@
 
 A machine learning project that classifies news headlines into four categories using a Bidirectional LSTM neural network built with PyTorch. The project includes a complete web interface built with Streamlit and a REST API using Flask.
 
+**🌐 Live Demo:** [https://tb-new-headline-classifier.streamlit.app/](https://tb-new-headline-classifier.streamlit.app/)
+
 ## 📊 Categories
 
 The model classifies news headlines into four categories:
@@ -154,96 +156,60 @@ The project uses the UCI News Aggregator dataset containing news headlines from 
 
 ## 🚦 Getting Started
 
-### Quick Start (One Command)
+### Quick Start
+
+**Try the live demo:**
+Visit **[https://tb-new-headline-classifier.streamlit.app/](https://tb-new-headline-classifier.streamlit.app/)** to use the application immediately without any setup!
+
+**Or run locally:**
 ```bash
-python run_app.py
+# Clone the repository
+git clone https://github.com/yourusername/news-headline-classifier.git
+cd news-headline-classifier
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Train the model
+python src/main.py
+
+# Launch the web app
+streamlit run src/app.py
 ```
-This script automatically:
-- Trains the model if needed
-- Starts the API server
-- Launches the Streamlit web interface
 
 ### Manual Setup
-1. **Train the model** first by running `python src/train.py`
-2. **Start the API** with `python src/api.py`
-3. **Launch the web app** with `streamlit run src/app.py`
-4. **Enter a news headline** and get instant classification results!
+1. **Clone the repository** and navigate to the project directory
+2. **Install dependencies** with `pip install -r requirements.txt`
+3. **Train the model** by running `python src/main.py` (downloads dataset automatically)
+4. **Launch the Streamlit app** with `streamlit run src/app.py`
+5. **Enter a news headline** and get instant classification results with interactive visualizations!
 
 ## 📝 Requirements
 
 - Python 3.7+
-- PyTorch 2.8.0+
+- PyTorch 2.0.0+
+- torchtext 0.6.0
+- Streamlit 1.28.0+
+- Plotly 5.14.0+
 - See `requirements.txt` for complete dependency list
 
 ## 🚀 Deployment
 
-### GitHub Deployment
+### Streamlit Cloud
 
-**Simple GitHub Setup:**
-1. **Fork/Clone** the repository to GitHub
-2. **Include model files** (already configured in `.gitignore`)
-3. **Clone and run locally**:
-   ```bash
-   git clone https://github.com/yourusername/project-lstm.git
-   cd project-lstm
-   pip install -r requirements.txt
-   python -m spacy download en_core_web_sm
-   python run_app.py
-   ```
-4. **GitHub Pages** automatically deploys documentation
+The application is deployed on Streamlit Cloud and can be accessed at:
+**[https://tb-new-headline-classifier.streamlit.app/](https://tb-new-headline-classifier.streamlit.app/)**
 
-### GitLab CI/CD
+### Local Deployment
 
-This project includes GitLab CI/CD configuration for automated deployment:
-
-1. **Push to GitLab**: The pipeline automatically runs on push to main branch
-2. **Stages**:
-   - `test`: Run tests and validation
-   - `build`: Build Docker image and push to GitLab Container Registry
-   - `deploy`: Deploy to production (manual trigger)
-
-### Docker Deployment
-
-**Build and run with Docker:**
+**Clone and run locally:**
 ```bash
-# Build the image
-docker build -t news-classifier .
-
-# Run the container
-docker run -p 8501:8501 -p 5001:5001 news-classifier
+git clone https://github.com/yourusername/news-headline-classifier.git
+cd news-headline-classifier
+pip install -r requirements.txt
+python src/main.py  # Train the model first
+streamlit run src/app.py
 ```
-
-**Or use Docker Compose:**
-```bash
-docker-compose up -d
-```
-
-Access the app at:
-- Streamlit UI: http://localhost:8501
-- API: http://localhost:5001
-
-### GitLab Container Registry
-
-To use GitLab's container registry:
-
-1. **Enable Container Registry** in your GitLab project settings
-2. **Configure CI/CD variables**:
-   - `CI_REGISTRY_USER`: Your GitLab username
-   - `CI_REGISTRY_PASSWORD`: Personal access token with registry permissions
-3. **Push to main branch** to trigger the pipeline
-
-### Cloud Deployment Options
-
-**GitLab Pages**: Automatically deploys documentation
-**Heroku**: Use the included Dockerfile
-**AWS/GCP/Azure**: Deploy using container services
-**DigitalOcean App Platform**: Direct GitLab integration
-
-### Environment Variables
-
-For production deployment, configure:
-- `PYTHONPATH=/app`
-- `PYTHONUNBUFFERED=1`
 
 ## 🤝 Contributing
 
