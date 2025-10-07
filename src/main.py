@@ -264,6 +264,11 @@ def main():
     # Always use the original dataset for consistency
     df = pd.read_csv(dataset_path)
     df = df[['TITLE', 'CATEGORY']]
+
+    # Save processed dataset for torchtext to load
+    processed_dataset_path = data_dir / 'processed_news.csv'
+    df.to_csv(processed_dataset_path, index=False)
+
     log_and_print(f"✓ Loaded dataset with shape: {df.shape}")
     log_and_print(f"✓ Found categories: {df['CATEGORY'].unique()}")
     category_dist = df['CATEGORY'].value_counts()
@@ -294,14 +299,37 @@ def main():
 
     # 2. Headline length distribution
     df['TITLE_LENGTH'] = df['TITLE'].str.split().str.len()
-    plt.figure(figsize=(12, 6))
-    for category in df['CATEGORY'].unique():
+
+    # Create figure with subplots for better clarity
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle('Distribution of Headline Lengths by Category', fontsize=16, fontweight='bold')
+
+    categories = sorted(df['CATEGORY'].unique())
+    colors = {'e': '#1f77b4', 'b': '#ff7f0e', 't': '#2ca02c', 'm': '#d62728'}
+
+    # Calculate appropriate bins based on actual data range
+    min_len = df['TITLE_LENGTH'].min()
+    max_len = df['TITLE_LENGTH'].max()
+    bins = range(int(min_len), int(max_len) + 2, 1)  # 1-word bins
+
+    for idx, category in enumerate(categories):
+        ax = axes[idx // 2, idx % 2]
         category_data = df[df['CATEGORY'] == category]['TITLE_LENGTH']
-        plt.hist(category_data, bins=30, alpha=0.5, label=f'Category {category}')
-    plt.title('Distribution of Headline Lengths by Category', fontsize=16, fontweight='bold')
-    plt.xlabel('Number of Words', fontsize=12)
-    plt.ylabel('Frequency', fontsize=12)
-    plt.legend()
+
+        ax.hist(category_data, bins=bins, alpha=0.7, color=colors.get(category, 'gray'), edgecolor='black')
+        ax.set_title(f'Category {category.upper()} (n={len(category_data):,})', fontsize=12, fontweight='bold')
+        ax.set_xlabel('Number of Words', fontsize=10)
+        ax.set_ylabel('Frequency', fontsize=10)
+        ax.grid(True, alpha=0.3)
+
+        # Add statistics
+        mean_len = category_data.mean()
+        median_len = category_data.median()
+        ax.axvline(mean_len, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_len:.1f}')
+        ax.axvline(median_len, color='blue', linestyle='--', linewidth=2, label=f'Median: {median_len:.1f}')
+        ax.legend(fontsize=8)
+        ax.set_xlim(min_len - 1, min(max_len + 1, 50))  # Cap at 50 for better visualization
+
     plt.tight_layout()
     length_dist_path = outputs_dir / 'headline_length_distribution.png'
     plt.savefig(length_dist_path)
@@ -324,13 +352,18 @@ def main():
     log_and_print("\n" + "=" * 60)
     log_and_print("Initializing text and label processors...")
     log_and_print("=" * 60)
+
+    # Define simple tokenizer function
+    def simple_tokenizer(text):
+        return text.lower().split()
+
     TEXT = torchtext.data.Field(
-        tokenize='basic_english',  # Uses basic English tokenizer (faster than spacy)
+        tokenize=simple_tokenizer,  # Use simple whitespace tokenizer
         include_lengths=True
     )
 
     LABEL = torchtext.data.LabelField(dtype=torch.long)
-    log_and_print("✓ Text field configured with basic_english tokenizer")
+    log_and_print("✓ Text field configured with simple tokenizer")
     log_and_print("✓ Label field configured")
 
     # Create dataset and split
@@ -340,12 +373,29 @@ def main():
 
     fields = [('TITLE', TEXT), ('CATEGORY', LABEL)]
     dataset = torchtext.data.TabularDataset(
-        path=str(dataset_path),
+        path=str(processed_dataset_path),  # Use the processed dataset with only TITLE and CATEGORY
         format='csv',
         skip_header=True,
         fields=fields
     )
     log_and_print(f"✓ Created TabularDataset with {len(dataset)} examples")
+
+    # Save test data BEFORE splitting (from original dataset)
+    log_and_print("\n" + "=" * 60)
+    log_and_print("Saving test dataset for app usage...")
+    log_and_print("=" * 60)
+
+    # Use same random seed to get consistent split
+    total_len = len(df)
+    test_size = int(total_len * 0.2)
+
+    # Shuffle with same seed
+    df_shuffled = df.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
+    test_df_export = df_shuffled.iloc[-test_size:]
+
+    test_csv_path = data_dir / 'test.csv'
+    test_df_export.to_csv(test_csv_path, index=False)
+    log_and_print(f'✓ Saved test data to: {test_csv_path} ({len(test_df_export)} samples)')
 
     # Split dataset (with fixed random seed for reproducibility)
     train_data, test_data = dataset.split(
@@ -422,36 +472,6 @@ def main():
     log_and_print(f'  - Hidden dim: {HIDDEN_DIM}')
     log_and_print(f'  - Output classes: {NUM_CLASSES}')
 
-    # Create model architecture visualization
-    try:
-        from torchviz import make_dot
-        log_and_print("\n" + "=" * 60)
-        log_and_print("Creating model architecture visualization...")
-        log_and_print("=" * 60)
-
-        # Create dummy input
-        dummy_text = torch.randint(0, len(TEXT.vocab), (10, 4)).to(DEVICE)  # [seq_len, batch_size]
-        dummy_length = torch.tensor([10, 8, 6, 5])
-
-        # Forward pass
-        output = model(dummy_text, dummy_length)
-
-        # Create visualization
-        dot = make_dot(output, params=dict(model.named_parameters()))
-        dot.format = 'png'
-        architecture_path = outputs_dir / 'model_architecture'
-        dot.render(architecture_path, cleanup=True)
-        log_and_print(f"✓ Saved model architecture diagram: {architecture_path}.png")
-    except ImportError:
-        log_and_print("⚠ torchviz not installed, skipping architecture visualization")
-        log_and_print("  Install with: pip install torchviz graphviz")
-    except Exception as e:
-        if 'Graphviz' in str(e) or 'dot' in str(e):
-            log_and_print("⚠ Graphviz system package not installed, skipping visualization")
-            log_and_print("  Install with: brew install graphviz (macOS) or apt-get install graphviz (Linux)")
-        else:
-            log_and_print(f"⚠ Could not create architecture visualization: {e}")
-
     # Check if saved model exists
     if model_exists:
         log_and_print("\n" + "=" * 60)
@@ -500,6 +520,10 @@ def main():
             'num_classes': NUM_CLASSES,
             'test_accuracy': test_acc.item(),
             'history': history,
+            'vocab_stoi': dict(TEXT.vocab.stoi),  # Save word to index mapping
+            'vocab_itos': TEXT.vocab.itos,  # Save index to word mapping
+            'label_stoi': dict(LABEL.vocab.stoi),  # Save label to index mapping
+            'label_itos': LABEL.vocab.itos,  # Save index to label mapping
         }, model_path)
         log_and_print(f'✓ Model saved to: {model_path}')
         log_and_print(f'✓ Model checkpoint includes: state_dict, optimizer, hyperparameters, and test accuracy')
@@ -512,31 +536,74 @@ def main():
 
             epochs = range(1, NUM_EPOCHS + 1)
 
-            # Loss curve
-            plt.figure(figsize=(12, 5))
-            plt.subplot(1, 2, 1)
-            plt.plot(epochs, history['train_losses'], 'b-', label='Training Loss', linewidth=2)
-            plt.title('Training Loss Over Epochs', fontsize=14, fontweight='bold')
-            plt.xlabel('Epoch', fontsize=12)
-            plt.ylabel('Loss', fontsize=12)
-            plt.legend()
-            plt.grid(True, alpha=0.3)
+            # Create comprehensive training plots
+            fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+            fig.suptitle('Training Progress and Performance Metrics', fontsize=18, fontweight='bold', y=0.995)
 
-            # Accuracy curves
-            plt.subplot(1, 2, 2)
-            plt.plot(epochs, history['train_accuracies'], 'b-', label='Training Accuracy', linewidth=2)
-            plt.plot(epochs, history['valid_accuracies'], 'r-', label='Validation Accuracy', linewidth=2)
-            plt.title('Accuracy Over Epochs', fontsize=14, fontweight='bold')
-            plt.xlabel('Epoch', fontsize=12)
-            plt.ylabel('Accuracy (%)', fontsize=12)
-            plt.legend()
-            plt.grid(True, alpha=0.3)
+            # 1. Training Loss
+            axes[0, 0].plot(epochs, history['train_losses'], 'b-', linewidth=2.5, marker='o', markersize=4)
+            axes[0, 0].set_title('Training Loss Over Epochs', fontsize=14, fontweight='bold')
+            axes[0, 0].set_xlabel('Epoch', fontsize=12)
+            axes[0, 0].set_ylabel('Loss', fontsize=12)
+            axes[0, 0].grid(True, alpha=0.3)
+            axes[0, 0].set_xlim(1, NUM_EPOCHS)
+
+            # 2. Training vs Validation Accuracy
+            axes[0, 1].plot(epochs, history['train_accuracies'], 'b-', label='Training Accuracy',
+                           linewidth=2.5, marker='o', markersize=4)
+            axes[0, 1].plot(epochs, history['valid_accuracies'], 'r-', label='Validation Accuracy',
+                           linewidth=2.5, marker='s', markersize=4)
+            axes[0, 1].axhline(y=test_acc.item(), color='g', linestyle='--', linewidth=2,
+                              label=f'Test Accuracy: {test_acc:.2f}%')
+            axes[0, 1].set_title('Accuracy Comparison', fontsize=14, fontweight='bold')
+            axes[0, 1].set_xlabel('Epoch', fontsize=12)
+            axes[0, 1].set_ylabel('Accuracy (%)', fontsize=12)
+            axes[0, 1].legend(loc='lower right', fontsize=10)
+            axes[0, 1].grid(True, alpha=0.3)
+            axes[0, 1].set_xlim(1, NUM_EPOCHS)
+
+            # 3. Accuracy Gap (Overfitting indicator)
+            accuracy_gap = [train - valid for train, valid in zip(history['train_accuracies'],
+                                                                   history['valid_accuracies'])]
+            axes[1, 0].plot(epochs, accuracy_gap, 'purple', linewidth=2.5, marker='^', markersize=4)
+            axes[1, 0].axhline(y=0, color='black', linestyle='-', linewidth=1)
+            axes[1, 0].fill_between(epochs, 0, accuracy_gap, alpha=0.3, color='purple')
+            axes[1, 0].set_title('Train-Validation Gap (Overfitting Indicator)', fontsize=14, fontweight='bold')
+            axes[1, 0].set_xlabel('Epoch', fontsize=12)
+            axes[1, 0].set_ylabel('Accuracy Gap (%)', fontsize=12)
+            axes[1, 0].grid(True, alpha=0.3)
+            axes[1, 0].set_xlim(1, NUM_EPOCHS)
+
+            # 4. Performance Summary
+            axes[1, 1].axis('off')
+            summary_text = f"""
+            TRAINING SUMMARY
+            {'='*40}
+
+            Total Epochs: {NUM_EPOCHS}
+
+            Final Training Accuracy: {history['train_accuracies'][-1]:.2f}%
+            Final Validation Accuracy: {history['valid_accuracies'][-1]:.2f}%
+            Test Accuracy: {test_acc:.2f}%
+
+            Final Training Loss: {history['train_losses'][-1]:.4f}
+
+            Best Validation Accuracy: {max(history['valid_accuracies']):.2f}%
+            (Epoch {history['valid_accuracies'].index(max(history['valid_accuracies'])) + 1})
+
+            Overfitting Gap: {accuracy_gap[-1]:.2f}%
+
+            Model Parameters: {total_params:,}
+            Vocabulary Size: {len(TEXT.vocab):,}
+            """
+            axes[1, 1].text(0.1, 0.5, summary_text, fontsize=12, verticalalignment='center',
+                          fontfamily='monospace', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
             plt.tight_layout()
-            training_curves_path = outputs_dir / 'training_curves.png'
-            plt.savefig(training_curves_path)
+            training_curves_path = outputs_dir / 'training_metrics.png'
+            plt.savefig(training_curves_path, dpi=150, bbox_inches='tight')
             plt.close()
-            log_and_print(f"✓ Saved training curves: {training_curves_path}")
+            log_and_print(f"✓ Saved training metrics: {training_curves_path}")
 
     # Make predictions
     log_and_print("\n" + "=" * 60)
@@ -557,19 +624,6 @@ def main():
         log_and_print(f'  └─ Predicted label: {predicted_label} (index: {predicted_label_index})')
         log_and_print(f'  └─ Confidence: {predicted_label_proba:.6f}\n')
 
-    log_and_print("\n" + "=" * 60)
-    log_and_print("Analysis: FC Layer vs No FC Layer")
-    log_and_print("=" * 60)
-    log_and_print("WITHOUT FC Layer (current model - using final hidden state directly):")
-    log_and_print("  • Relies solely on LSTM's hidden state for classification")
-    log_and_print("  • Hidden state may not be optimized for class discrimination")
-    log_and_print("  • Expected test accuracy: ~41.7%")
-    log_and_print("\nWITH FC Layer (alternative architecture):")
-    log_and_print("  • FC layer transforms hidden state into discriminative representation")
-    log_and_print("  • Can learn non-linear feature combinations")
-    log_and_print("  • Improves separation between classes")
-    log_and_print("  • Expected test accuracy: ~93.28%")
-    log_and_print("  • Performance improvement: ~51.5%")
     log_and_print("\n" + "=" * 60)
     log_and_print("Training completed successfully!")
     log_and_print(f"Full log saved to: {log_file}")

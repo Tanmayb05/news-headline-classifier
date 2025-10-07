@@ -28,15 +28,6 @@ project-lstm/
 
 ## 🛠️ Setup & Installation
 
-### Prerequisites (macOS Users)
-
-**Important:** Install Graphviz for model architecture visualization:
-```bash
-brew install graphviz
-```
-
-This is required for generating the model architecture diagram. If not installed, the script will skip visualization but continue training.
-
 ### Installation Steps
 
 1. **Clone the repository**
