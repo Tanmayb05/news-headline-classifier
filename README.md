@@ -4,6 +4,20 @@ A machine learning project that classifies news headlines into four categories u
 
 **🌐 Live Demo:** [https://tb-new-headline-classifier.streamlit.app/](https://tb-new-headline-classifier.streamlit.app/)
 
+## 📸 Screenshots
+
+### Home - Model Information
+![Home Tab](screenshots/Home.png)
+*Comprehensive model statistics, architecture details, and category information*
+
+### Classification Interface
+![Classify Tab](screenshots/Classify.png)
+*Interactive classification interface with random headline generation and confidence scores*
+
+### Interactive Visualizations
+![Visualizations Tab](screenshots/Visualizations.png)
+*Interactive Plotly charts showing data distribution, headline length analysis, and training metrics*
+
 ## 📊 Categories
 
 The model classifies news headlines into four categories:
